@@ -1,27 +1,34 @@
 import streamlit as st
 
-def services():
+government_services = [
+    ("🪪", "Aadhaar", "Update Aadhaar Details"),
+    ("💳", "PAN Card", "PAN Services"),
+    ("🛂", "Passport", "Passport Renewal"),
+    ("🚗", "Driving License", "Driving Services"),
+    ("🗳️", "Voter ID", "Election Services"),
+    ("📜", "Birth Certificate", "Certificates"),
+]
 
-    st.subheader("🚀 Popular Government Services")
+def service_cards():
 
-    c1,c2,c3=st.columns(3)
+    st.markdown("## 🚀 Popular Government Services")
 
-    with c1:
-        st.info("🪪 Aadhaar Services")
+    cols = st.columns(3)
 
-    with c2:
-        st.info("💳 PAN Card")
+    for index, service in enumerate(government_services):
 
-    with c3:
-        st.info("🛂 Passport")
+        icon, title, subtitle = service
 
-    c4,c5,c6=st.columns(3)
+        with cols[index % 3]:
 
-    with c4:
-        st.info("🚗 Driving License")
+            with st.container(border=True):
 
-    with c5:
-        st.info("🗳 Voter ID")
+                st.markdown(f"## {icon}")
+                st.markdown(f"### {title}")
+                st.caption(subtitle)
 
-    with c6:
-        st.info("📄 Income Certificate")
+                if st.button(
+                    "Open Service",
+                    key=f"service_btn_{index}"   # <-- unique key
+                ):
+                    st.success(f"Opening {title}")
