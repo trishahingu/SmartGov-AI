@@ -1,3 +1,9 @@
+from services.liveness_service import check_liveness
+from services.report_service import generate_report
+from services.trust_service import calculate_trust
+from services.forgery_service import check_forgery
+from services.document_parser import parse_document
+from services.ocr_service import extract_text
 from fastapi import APIRouter, UploadFile, File
 import os
 import shutil
@@ -17,10 +23,39 @@ async def verify_document(file: UploadFile = File(...)):
     )
 
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
 
-    return {
-        "status": "success",
-        "filename": file.filename,
-        "message": "Document uploaded successfully"
-    }
+        shutil.copyfileobj(
+            file.file,
+            buffer
+        )
+        
+
+    text = extract_text(file_path)
+    document = parse_document(text)
+    forgery = check_forgery(file_path)
+    liveness = check_liveness(file_path)
+    trust = calculate_trust(
+    document,
+    forgery,
+    liveness
+)
+    report = generate_report(
+    document,
+    forgery,
+    trust
+)
+    return{
+
+    "status":"success",
+
+    "document":document,
+
+    "forgery":forgery,
+
+    "liveness":liveness,
+
+    "trust":trust,
+
+    "report":report
+
+}
