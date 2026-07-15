@@ -1,7 +1,11 @@
 import streamlit as st
 import os
 import tempfile
-from ai.ocr import extract_text
+from ai.ocr.ocr import (
+    extract_text,
+    detect_document_type,
+    extract_fields
+)
 def upload_box():
 
     st.markdown("## 📄 Smart Document Verification")
@@ -51,23 +55,34 @@ def upload_box():
         st.divider()
         if st.button("🚀 Start AI Verification", use_container_width=True):
 
-            if extension == ".pdf":
-                st.warning("📄 PDF OCR will be added in the next version. Please upload an image (PNG/JPG/JPEG).")
+            with st.spinner("🤖 SmartGov AI is verifying your document..."):
 
-            else:
-                with st.spinner("🤖 AI is reading your document..."):
-
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=extension)
-
-                    temp_file.write(uploaded_file.getbuffer())
-                    temp_file.close()
-
-                    extracted = extract_text(temp_file.name)
-
-                st.success("✅ OCR Completed")
-
-                st.text_area(
-                    "📄 Extracted Text",
-                    extracted,
-                    height=250
+                temp_file = tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=extension
                 )
+
+                temp_file.write(uploaded_file.getbuffer())
+                temp_file.close()
+
+                text = extract_text(temp_file.name)
+
+                document = detect_document_type(text)
+
+                fields = extract_fields(text)
+
+                os.unlink(temp_file.name)
+
+            st.success("✅ Verification Completed")
+
+            st.subheader("📄 AI Verification Report")
+
+            st.write("### Document Type")
+            st.info(document)
+
+            st.write("### Extracted Information")
+
+            st.table(fields)
+
+            with st.expander("📃 Full OCR Text"):
+                st.text(text)
