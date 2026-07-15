@@ -1,4 +1,4 @@
-from services.liveness_service import check_liveness
+# from services.liveness_service import check_liveness
 from services.report_service import generate_report
 from services.trust_service import calculate_trust
 from services.forgery_service import check_forgery
@@ -33,7 +33,11 @@ async def verify_document(file: UploadFile = File(...)):
     text = extract_text(file_path)
     document = parse_document(text)
     forgery = check_forgery(file_path)
-    liveness = check_liveness(file_path)
+    liveness = {
+    "face_detected": False,
+    "confidence": 0,
+    "status": "Not Implemented"
+}
     trust = calculate_trust(
     document,
     forgery,
