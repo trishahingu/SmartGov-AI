@@ -1,70 +1,66 @@
-def calculate_trust(
-    document,
-    forgery,
-    liveness
-):
-
-    score = 100
-
+def calculate_trust_score(face_result, ocr_text, forgery, liveness):
+    score = 0
     reasons = []
 
-    # Document Type
+    # Face Detection
+    if face_result.get("face_detected"):
+        score += 30
+        reasons.append("Face detected successfully")
+    else:
+        reasons.append("No face detected")
 
-    if document["document_type"] == "Unknown":
+    # Exactly one face
+    if face_result.get("face_count") == 1:
+        score += 20
+        reasons.append("Single face found")
+    elif face_result.get("face_count", 0) > 1:
+        reasons.append("Multiple faces detected")
 
-        score -= 25
-
-        reasons.append("Unknown document")
-
-    # Document Number
-
-    if document["document_number"] == "":
-
-        score -= 15
-
-        reasons.append("Document number not detected")
-
-    # DOB
-
-    if document["dob"] == "":
-
-        score -= 10
-
-        reasons.append("DOB not detected")
+    # OCR
+    if ocr_text and len(ocr_text.strip()) > 20:
+        score += 30
+        reasons.append("OCR extracted readable text")
+    else:
+        reasons.append("Poor OCR quality")
 
     # Forgery
+    if forgery["status"] == "Authentic":
+        score += 20
+        reasons.append("Document appears authentic")
 
-    score = min(score, forgery["score"])
-
-    if not liveness["face_detected"]:
-
-        score -= 20
-
-        reasons.append("Face not detected")
-    if forgery["score"] < 75:
-
-        reasons.append("Image quality is low")
-
-    score = max(score, 0)
-
-    if score >= 90:
-
-        level = "HIGH"
-
-    elif score >= 75:
-
-        level = "MEDIUM"
+    elif forgery["status"] == "Needs Manual Review":
+        score += 10
+        reasons.append("Manual review recommended")
 
     else:
+        reasons.append("Forgery suspected")
 
-        level = "LOW"
+        # Liveness
+    if liveness["status"] == "Live":
+        score += 20
+        reasons.append("Live face detected")
+    elif liveness["status"] == "Review Required":
+        score += 10
+        reasons.append("Liveness requires review")
+    else:
+        reasons.append("Possible spoof attempt")    
+    # Reserved for forgery detection
+    score += 20
 
+    if score >= 90:
+        risk = "Low"
+        status = "Verified"
+    elif score >= 70:
+        risk = "Medium"
+        status = "Needs Review"
+    else:
+        risk = "High"
+        status = "Rejected"
+    
     return {
-
         "trust_score": score,
-
-        "trust_level": level,
-
-        "reasons": reasons
-
+        "risk_level": risk,
+        "status": status,
+        "reasons": reasons,
+        "liveness": liveness,
     }

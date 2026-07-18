@@ -3,68 +3,62 @@ import numpy as np
 
 
 def check_forgery(image_path):
-
     image = cv2.imread(image_path)
 
     if image is None:
-
         return {
-
-            "score": 0,
-
-            "status": "Unable to read image"
-
+            "status": "Invalid Image",
+            "confidence": 0
         }
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     # Blur Detection
-
-    blur = cv2.Laplacian(
-        gray,
-        cv2.CV_64F
-    ).var()
+    blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
 
     # Brightness
-
     brightness = np.mean(gray)
 
     # Resolution
-
     height, width = gray.shape
 
-    resolution = width * height
-
     score = 100
+    reasons = []
 
-    if blur < 100:
-
+    # Blur
+    if blur_score < 80:
         score -= 25
+        reasons.append("Image is blurry")
 
+    # Brightness
     if brightness < 60:
-
         score -= 15
+        reasons.append("Image too dark")
 
     if brightness > 220:
-
         score -= 15
+        reasons.append("Image overexposed")
 
-    if resolution < 700000:
-
+    # Resolution
+    if width < 500 or height < 500:
         score -= 20
+        reasons.append("Low resolution")
 
-    score = max(score, 0)
+    # Status
+    if score >= 90:
+        status = "Authentic"
+
+    elif score >= 70:
+        status = "Needs Manual Review"
+
+    else:
+        status = "Possible Forgery"
 
     return {
-
-        "blur": round(blur, 2),
-
-        "brightness": round(brightness, 2),
-
-        "resolution": resolution,
-
-        "score": score,
-
-        "status": "Likely Original" if score >= 75 else "Needs Manual Review"
-
+        "status": status,
+        "confidence": score,
+        "blur_score": round(blur_score, 2),
+        "brightness": round(float(brightness), 2),
+        "resolution": f"{width}x{height}",
+        "reasons": reasons
     }

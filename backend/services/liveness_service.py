@@ -1,42 +1,47 @@
 import cv2
-import mediapipe as mp
+from services.face_service import detect_face
 
-mp_face = mp.solutions.face_detection
-
-detector = mp_face.FaceDetection(
-    model_selection=0,
-    min_detection_confidence=0.6
-)
 
 def check_liveness(image_path):
+    face = detect_face(image_path)
+
+    if not face["face_detected"]:
+        return {
+            "status": "Failed",
+            "confidence": 0,
+            "reason": "No face detected"
+        }
 
     image = cv2.imread(image_path)
 
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    result = detector.process(rgb)
+    brightness = gray.mean()
 
-    if result.detections:
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F).var()
 
-        return {
+    score = 100
+    reasons = []
 
-            "face_detected": True,
+    if brightness < 60:
+        score -= 20
+        reasons.append("Image too dark")
 
-            "confidence": round(
-                result.detections[0].score[0] * 100,
-                2
-            ),
+    if laplacian < 80:
+        score -= 20
+        reasons.append("Blur detected")
 
-            "status": "Face Detected"
-
-        }
+    if score >= 80:
+        status = "Live"
+    elif score >= 60:
+        status = "Review Required"
+    else:
+        status = "Spoof Suspected"
 
     return {
-
-        "face_detected": False,
-
-        "confidence": 0,
-
-        "status": "No Face Found"
-
+        "status": status,
+        "confidence": score,
+        "brightness": round(float(brightness), 2),
+        "sharpness": round(laplacian, 2),
+        "reasons": reasons
     }

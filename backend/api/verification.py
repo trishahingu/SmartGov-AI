@@ -1,65 +1,85 @@
-# from services.liveness_service import check_liveness
+import os
+from services.database_service import save_verification
+from services.trust_service import calculate_trust_score
+from services.face_service import detect_face
+from services.ocr_service import extract_text
+from services.liveness_service import check_liveness
 from services.report_service import generate_report
-from services.trust_service import calculate_trust
 from services.forgery_service import check_forgery
 from services.document_parser import parse_document
-from services.ocr_service import extract_text
 from fastapi import APIRouter, UploadFile, File
-import os
-import shutil
 
-router = APIRouter()
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
+router = APIRouter(
+    prefix="/api",
+    tags=["Verification"]
+)
 
 @router.post("/verify")
-async def verify_document(file: UploadFile = File(...)):
+async def verify_document(
+    document: UploadFile = File(...),
+    selfie: UploadFile = File(...)
+):
 
-    file_path = os.path.join(
-        UPLOAD_DIR,
-        file.filename
-    )
+    os.makedirs("uploads", exist_ok=True)
 
-    with open(file_path, "wb") as buffer:
+    document_path = f"uploads/{document.filename}"
+    selfie_path = f"uploads/{selfie.filename}"
 
-        shutil.copyfileobj(
-            file.file,
-            buffer
-        )
-        
+    with open(document_path, "wb") as f:
+        f.write(await document.read())
 
-    text = extract_text(file_path)
-    document = parse_document(text)
-    forgery = check_forgery(file_path)
-    liveness = {
-    "face_detected": False,
-    "confidence": 0,
-    "status": "Not Implemented"
+    with open(selfie_path, "wb") as f:
+        f.write(await selfie.read())
+
+    # OCR
+
+    ocr_text = extract_text(document_path)
+
+    forgery = check_forgery(document_path)
+
+    liveness = check_liveness(selfie_path)
+
+    document_data = parse_document(ocr_text)
+
+    face_result = detect_face(selfie_path)
+
+    trust = calculate_trust_score(face_result, ocr_text, forgery,liveness)
+    verification_data = {
+
+    "document": document_data,
+
+    "ocr": ocr_text,
+
+    "face": face_result,
+
+    "forgery": forgery,
+
+    "liveness": liveness,
+
+    "trust": trust
+
 }
-    trust = calculate_trust(
-    document,
-    forgery,
-    liveness
-)
-    report = generate_report(
-    document,
-    forgery,
-    trust
-)
-    return{
 
-    "status":"success",
+    save_verification(verification_data)
 
-    "document":document,
+    return {
 
-    "forgery":forgery,
+    "status": "success",
 
-    "liveness":liveness,
+    "document": document.filename,
 
-    "trust":trust,
+    "selfie": selfie.filename,
 
-    "report":report
+    "document_data": document_data,
+
+    "ocr": {
+        "text": ocr_text
+    },
+
+    "face": face_result,
+
+    "forgery": forgery,
+
+    "trust": trust
 
 }
