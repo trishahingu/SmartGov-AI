@@ -1,102 +1,135 @@
+import os
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
-    Spacer
+    Spacer,
+    Table,
+    TableStyle,
 )
 
-from reportlab.lib.styles import getSampleStyleSheet
+REPORT_FOLDER = "reports"
 
-import os
-
-REPORT_DIR = "reports"
-
-os.makedirs(REPORT_DIR, exist_ok=True)
+os.makedirs(REPORT_FOLDER, exist_ok=True)
 
 
-def generate_report(document, forgery, trust):
+def generate_report(data):
 
-    filename = "verification_report.pdf"
+    filename = f"verification_report_{data['document'].get('aadhaar_number','unknown')}.pdf"
 
-    filepath = os.path.join(
-        REPORT_DIR,
-        filename
-    )
+    filepath = os.path.join(REPORT_FOLDER, filename)
+
+    doc = SimpleDocTemplate(filepath)
 
     styles = getSampleStyleSheet()
 
-    pdf = SimpleDocTemplate(filepath)
+    elements = []
 
-    story = []
+    title = Paragraph("<b>SmartGov AI Verification Report</b>", styles["Title"])
 
-    story.append(
-        Paragraph(
-            "<b>🏛 SmartGov AI Verification Report</b>",
-            styles["Title"]
+    elements.append(title)
+
+    elements.append(Spacer(1, 20))
+
+    document = data.get("document", {})
+
+    trust = data.get("trust", {})
+
+    forgery = data.get("forgery", {})
+
+    liveness = data.get("liveness", {})
+
+    face = data.get("face", {})
+
+    table_data = [
+
+        ["Field", "Value"],
+
+        ["Citizen Name", document.get("name", "Not Found")],
+
+        ["Aadhaar Number", document.get("aadhaar_number", "Not Found")],
+
+        ["Date of Birth", document.get("dob", "Not Found")],
+
+        ["Gender", document.get("gender", "Not Found")],
+
+        ["Face Detected", "Yes" if face.get("face_detected") else "No"],
+
+        ["Face Count", str(face.get("face_count", 0))],
+
+        ["Face Confidence", f"{face.get('confidence',0)} %"],
+
+        ["Liveness", liveness.get("status", "Unknown")],
+
+        ["Forgery Status", forgery.get("status", "Unknown")],
+
+        ["Forgery Confidence", f"{forgery.get('confidence',0)} %"],
+
+        ["Trust Score", str(trust.get("trust_score", 0))],
+
+        ["Risk Level", trust.get("risk_level", "Unknown")],
+
+        ["Verification Status", trust.get("status", "Unknown")]
+
+    ]
+
+    table = Table(table_data, colWidths=[170, 250])
+
+    table.setStyle(
+
+        TableStyle(
+
+            [
+
+                ("BACKGROUND", (0, 0), (-1, 0), colors.darkblue),
+
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+
+                ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+
+                ("FONTNAME", (0, 1), (0, -1), "Helvetica-Bold"),
+
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+
+            ]
+
         )
+
     )
 
-    story.append(Spacer(1,20))
+    elements.append(table)
 
-    story.append(
-        Paragraph(
-            f"<b>Document Type:</b> {document['document_type']}",
-            styles["Normal"]
-        )
+    elements.append(Spacer(1, 20))
+
+    elements.append(
+
+        Paragraph("<b>Reasons</b>", styles["Heading2"])
+
     )
 
-    story.append(
-        Paragraph(
-            f"<b>Document Number:</b> {document['document_number']}",
-            styles["Normal"]
+    for reason in trust.get("reasons", []):
+
+        elements.append(
+
+            Paragraph("• " + reason, styles["BodyText"])
+
         )
-    )
 
-    story.append(
-        Paragraph(
-            f"<b>DOB:</b> {document['dob']}",
-            styles["Normal"]
-        )
-    )
+    doc.build(elements)
 
-    story.append(
-        Paragraph(
-            f"<b>Gender:</b> {document['gender']}",
-            styles["Normal"]
-        )
-    )
+    return {
 
-    story.append(Spacer(1,20))
+        "success": True,
 
-    story.append(
-        Paragraph(
-            f"<b>Forgery Score:</b> {forgery['score']}%",
-            styles["Normal"]
-        )
-    )
+        "report_path": filepath,
 
-    story.append(
-        Paragraph(
-            f"<b>Status:</b> {forgery['status']}",
-            styles["Normal"]
-        )
-    )
+        "filename": filename
 
-    story.append(Spacer(1,20))
-
-    story.append(
-        Paragraph(
-            f"<b>Trust Score:</b> {trust['trust_score']}%",
-            styles["Normal"]
-        )
-    )
-
-    story.append(
-        Paragraph(
-            f"<b>Trust Level:</b> {trust['trust_level']}",
-            styles["Normal"]
-        )
-    )
-
-    pdf.build(story)
-
-    return filepath
+    }

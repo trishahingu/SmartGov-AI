@@ -1,35 +1,75 @@
-import cv2
 import os
+import cv2
 
-CASCADE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
+MODEL_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "..",
     "models",
-    "haarcascade_frontalface_default.xml"
+    "face_detection_yunet_2023mar.onnx"
 )
-
-face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
 
 
 def detect_face(image_path):
-    image = cv2.imread(image_path)
 
-    if image is None:
+    try:
+
+        image = cv2.imread(image_path)
+
+        if image is None:
+            return {
+                "success": False,
+                "face_detected": False,
+                "face_count": 0,
+                "confidence": 0,
+                "message": "Unable to read image"
+            }
+
+        h, w = image.shape[:2]
+
+        detector = cv2.FaceDetectorYN.create(
+            MODEL_PATH,
+            "",
+            (w, h),
+            score_threshold=0.8,
+            nms_threshold=0.3,
+            top_k=5000
+        )
+
+        detector.setInputSize((w, h))
+
+        _, faces = detector.detect(image)
+
+        if faces is None or len(faces) == 0:
+
+            return {
+                "success": True,
+                "face_detected": False,
+                "face_count": 0,
+                "confidence": 0,
+                "message": "No face detected"
+            }
+
+        confidences = []
+
+        for face in faces:
+            confidences.append(float(face[-1]) * 100)
+
+        best_confidence = round(max(confidences), 2)
+
         return {
-            "success": False,
-            "message": "Image not found."
+            "success": True,
+            "face_detected": True,
+            "face_count": len(faces),
+            "confidence": best_confidence,
+            "message": "Face detected successfully"
         }
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    except Exception as e:
 
-    faces = face_cascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(80, 80)
-    )
-
-    return {
-        "success": True,
-        "face_detected": len(faces) > 0,
-        "face_count": len(faces)
-    }
+        return {
+            "success": False,
+            "face_detected": False,
+            "face_count": 0,
+            "confidence": 0,
+            "message": str(e)
+        }

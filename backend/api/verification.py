@@ -1,4 +1,6 @@
 import os
+from fastapi import APIRouter, UploadFile, File, HTTPException
+
 from services.database_service import save_verification
 from services.trust_service import calculate_trust_score
 from services.face_service import detect_face
@@ -7,79 +9,125 @@ from services.liveness_service import check_liveness
 from services.report_service import generate_report
 from services.forgery_service import check_forgery
 from services.document_parser import parse_document
-from fastapi import APIRouter, UploadFile, File
 
 router = APIRouter(
     prefix="/api",
     tags=["Verification"]
 )
 
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
 @router.post("/verify")
 async def verify_document(
     document: UploadFile = File(...),
     selfie: UploadFile = File(...)
 ):
+    try:
 
-    os.makedirs("uploads", exist_ok=True)
+        # ---------------- Save Uploaded Files ----------------
 
-    document_path = f"uploads/{document.filename}"
-    selfie_path = f"uploads/{selfie.filename}"
+        document_path = os.path.join(
+            UPLOAD_FOLDER,
+            document.filename
+        )
 
-    with open(document_path, "wb") as f:
-        f.write(await document.read())
+        selfie_path = os.path.join(
+            UPLOAD_FOLDER,
+            selfie.filename
+        )
 
-    with open(selfie_path, "wb") as f:
-        f.write(await selfie.read())
+        with open(document_path, "wb") as f:
+            f.write(await document.read())
 
-    # OCR
+        with open(selfie_path, "wb") as f:
+            f.write(await selfie.read())
 
-    ocr_text = extract_text(document_path)
+        # ---------------- OCR ----------------
 
-    forgery = check_forgery(document_path)
+        ocr_text = extract_text(document_path)
 
-    liveness = check_liveness(selfie_path)
+        # ---------------- Parse Document ----------------
 
-    document_data = parse_document(ocr_text)
+        document_data = parse_document(ocr_text)
 
-    face_result = detect_face(selfie_path)
+        # ---------------- Face Detection ----------------
 
-    trust = calculate_trust_score(face_result, ocr_text, forgery,liveness)
-    verification_data = {
+        face_result = detect_face(selfie_path)
 
-    "document": document_data,
+        # ---------------- Liveness ----------------
 
-    "ocr": ocr_text,
+        liveness = check_liveness(selfie_path)
 
-    "face": face_result,
+        # ---------------- Forgery ----------------
 
-    "forgery": forgery,
+        forgery = check_forgery(document_path)
 
-    "liveness": liveness,
+        # ---------------- Trust Score ----------------
 
-    "trust": trust
+        trust = calculate_trust_score(
+            face_result,
+            ocr_text,
+            forgery,
+            liveness,
+            document_data
+        )
 
-}
+        # ---------------- Final Data ----------------
 
-    save_verification(verification_data)
+        verification_data = {
 
-    return {
+            "document": document_data,
 
-    "status": "success",
+            "ocr": {
+                "text": ocr_text
+            },
 
-    "document": document.filename,
+            "face": face_result,
 
-    "selfie": selfie.filename,
+            "liveness": liveness,
 
-    "document_data": document_data,
+            "forgery": forgery,
 
-    "ocr": {
-        "text": ocr_text
-    },
+            "trust": trust
+        }
 
-    "face": face_result,
+        # ---------------- Save Database ----------------
 
-    "forgery": forgery,
+        save_verification(verification_data)
 
-    "trust": trust
+        # ---------------- Generate PDF ----------------
 
-}
+        report = generate_report(verification_data)
+
+        # ---------------- API Response ----------------
+
+        return {
+
+            "success": True,
+
+            "message": "Verification completed successfully.",
+
+            "document": document_data,
+
+            "ocr": verification_data["ocr"],
+
+            "face": face_result,
+
+            "liveness": liveness,
+
+            "forgery": forgery,
+
+            "trust": trust,
+
+            "report": report
+
+        }
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
