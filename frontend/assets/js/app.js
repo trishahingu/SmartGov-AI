@@ -1,245 +1,529 @@
-const verifyBtn = document.getElementById("verifyBtn");
-const fileInput = document.getElementById("documentFile");
-const result = document.getElementById("result");
+// ===========================================
+// SmartGov AI
+// app.js
+// Final Production Version
+// ===========================================
 
-verifyBtn.addEventListener("click", verifyDocument);
+document.addEventListener("DOMContentLoaded", () => {
 
-async function verifyDocument() {
+    "use strict";
 
-    if (fileInput.files.length === 0) {
+    /*====================================================
+        ELEMENTS
+    ====================================================*/
 
-        alert("Please select a document.");
+    const navbar = document.querySelector(".navbar");
+    const backToTop = document.getElementById("backToTop");
+    const verifyBtn = document.querySelector(".btn-warning");
+    const fileInputs = document.querySelectorAll("input[type='file']");
+    const sections = document.querySelectorAll("section");
+    const navLinks = document.querySelectorAll(".nav-link");
+    const counters = document.querySelectorAll(".counter");
 
-        return;
+    /*====================================================
+        NAVBAR
+    ====================================================*/
 
-    }
+    function navbarScroll() {
 
-    const formData = new FormData();
+        if (!navbar) return;
 
-    formData.append("file", fileInput.files[0]);
+        if (window.scrollY > 40) {
 
-    result.innerHTML = `
+            navbar.classList.add("scrolled");
 
-    <div class="text-center p-5">
+        } else {
 
-        <div class="spinner-border text-primary"></div>
-
-        <h4 class="mt-3">
-
-            SmartGov AI is verifying your document...
-
-        </h4>
-
-        <p>Please wait...</p>
-
-    </div>
-
-    `;
-
-    try {
-
-        const response = await fetch("http://127.0.0.1:8000/api/verify", {
-
-            method: "POST",
-
-            body: formData
-
-        });
-
-        if (!response.ok) {
-
-            throw new Error("Server Error");
+            navbar.classList.remove("scrolled");
 
         }
 
-        const data = await response.json();
+    }
 
-        displayResult(data);
+    navbarScroll();
+
+    window.addEventListener("scroll", navbarScroll);
+
+    /*====================================================
+        BACK TO TOP
+    ====================================================*/
+
+    function toggleBackToTop() {
+
+        if (!backToTop) return;
+
+        if (window.scrollY > 350) {
+
+            backToTop.style.display = "flex";
+
+        } else {
+
+            backToTop.style.display = "none";
+
+        }
 
     }
 
-    catch (error) {
+    toggleBackToTop();
 
-        console.error(error);
+    window.addEventListener("scroll", toggleBackToTop);
 
-        result.innerHTML = `
+    if (backToTop) {
 
-        <div class="alert alert-danger">
+        backToTop.addEventListener("click", () => {
 
-            <h5>Backend Connection Failed</h5>
+            window.scrollTo({
 
-            <p>${error.message}</p>
+                top: 0,
+                behavior: "smooth"
 
-        </div>
+            });
 
-        `;
+        });
 
     }
 
-}
+    /*====================================================
+        SMOOTH SCROLL
+    ====================================================*/
 
-function displayResult(data) {
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
 
-    result.innerHTML = `
+        link.addEventListener("click", function (e) {
 
-<div class="verification-dashboard">
+            const target = document.querySelector(this.getAttribute("href"));
 
-<div class="status-card">
+            if (!target) return;
 
-<div class="status-icon">✅</div>
+            e.preventDefault();
 
-<h2>Verification Successful</h2>
+            target.scrollIntoView({
 
-<h1>${data.trust.trust_score}%</h1>
+                behavior: "smooth",
+                block: "start"
 
-<p>AI Trust Score</p>
+            });
 
-</div>
+        });
 
-<div class="row g-4">
+    });
 
-<div class="col-md-4">
+    /*====================================================
+        ACTIVE NAVIGATION
+    ====================================================*/
 
-<div class="small-card">
+    function activateMenu() {
 
-<h5>📄 OCR</h5>
+        let current = "";
 
-<h3>Completed</h3>
+        sections.forEach(section => {
 
-</div>
+            const top = section.offsetTop - 120;
 
-</div>
+            const height = section.clientHeight;
 
-<div class="col-md-4">
+            if (window.scrollY >= top && window.scrollY < top + height) {
 
-<div class="small-card">
+                current = section.getAttribute("id");
 
-<h5>🛡 Forgery</h5>
+            }
 
-<h3>${data.forgery.score}%</h3>
+        });
 
-</div>
+        navLinks.forEach(link => {
 
-</div>
+            link.classList.remove("active");
 
-<div class="col-md-4">
+            if (link.getAttribute("href") === "#" + current) {
 
-<div class="small-card">
+                link.classList.add("active");
 
-<h5>⭐ Trust</h5>
+            }
 
-<h3>${data.trust.trust_level}</h3>
+        });
 
-</div>
+    }
 
-</div>
+    activateMenu();
 
-</div>
+    window.addEventListener("scroll", activateMenu);
 
-<div class="info-card mt-4">
+    /*====================================================
+        COUNTER ANIMATION
+    ====================================================*/
 
-<h4>📄 Document Information</h4>
+    const counterObserver = new IntersectionObserver(entries => {
 
-<table class="table">
+        entries.forEach(entry => {
 
-<tr>
+            if (!entry.isIntersecting) return;
 
-<th>Document</th>
+            const counter = entry.target;
 
-<td>${data.document.document_type}</td>
+            const target = Number(counter.dataset.target);
 
-</tr>
+            let count = 0;
 
-<tr>
+            const speed = target / 120;
 
-<th>Number</th>
+            function updateCounter() {
 
-<td>${data.document.document_number}</td>
+                count += speed;
 
-</tr>
+                if (count < target) {
 
-<tr>
+                    counter.innerHTML =
+                        Math.ceil(count).toLocaleString();
 
-<th>DOB</th>
+                    requestAnimationFrame(updateCounter);
 
-<td>${data.document.dob || "-"}</td>
+                } else {
 
-</tr>
+                    counter.innerHTML =
+                        target.toLocaleString();
 
-<tr>
+                }
 
-<th>Gender</th>
+            }
 
-<td>${data.document.gender || "-"}</td>
+            updateCounter();
 
-</tr>
+            counterObserver.unobserve(counter);
 
-</table>
+        });
 
-</div>
+    }, {
 
-<div class="info-card mt-4">
+        threshold: 0.6
 
-<h4>🛡 AI Security Analysis</h4>
+    });
 
-<table class="table">
+    counters.forEach(counter => {
 
-<tr>
+        counterObserver.observe(counter);
 
-<th>Forgery Score</th>
+    });
 
-<td>${data.forgery.score}%</td>
+    /*====================================================
+        FADE ANIMATION
+    ====================================================*/
 
-</tr>
+    const fadeObserver = new IntersectionObserver(entries => {
 
-<tr>
+        entries.forEach(entry => {
 
-<th>Status</th>
+            if (entry.isIntersecting) {
 
-<td>${data.forgery.status}</td>
+                entry.target.classList.add("show");
 
-</tr>
+            }
 
-<tr>
+        });
 
-<th>Trust Score</th>
+    }, {
 
-<td>${data.trust.trust_score}%</td>
+        threshold: 0.2
 
-</tr>
+    });
 
-<tr>
+    document.querySelectorAll(".fade-up").forEach(item => {
 
-<th>Trust Level</th>
+        fadeObserver.observe(item);
 
-<td>
+    });
 
-<span class="badge bg-success">
+    /*====================================================
+        BUTTON RIPPLE
+    ====================================================*/
 
-${data.trust.trust_level}
+    document.querySelectorAll(".btn").forEach(button => {
 
-</span>
+        button.addEventListener("click", function (e) {
 
-</td>
+            const ripple = document.createElement("span");
 
-</tr>
+            const size = Math.max(
 
-</table>
+                this.clientWidth,
+                this.clientHeight
 
-</div>
+            );
 
-<div class="d-grid mt-4">
+            ripple.style.width = size + "px";
+            ripple.style.height = size + "px";
 
-<button class="btn btn-success btn-lg">
+            ripple.style.left =
+                e.offsetX - size / 2 + "px";
 
-📄 Download Verification Report
+            ripple.style.top =
+                e.offsetY - size / 2 + "px";
 
-</button>
+            ripple.className = "ripple";
 
-</div>
+            const oldRipple =
+                this.querySelector(".ripple");
 
-</div>
+            if (oldRipple) {
 
-`;
+                oldRipple.remove();
 
-}
+            }
+
+            this.appendChild(ripple);
+
+        });
+
+    });
+        /*====================================================
+        FILE INPUT PREVIEW
+    ====================================================*/
+
+    fileInputs.forEach(input => {
+
+        input.addEventListener("change", function () {
+
+            if (!this.files.length) return;
+
+            this.title = this.files[0].name;
+
+            const label = this.parentElement.querySelector(".file-name");
+
+            if (label) {
+
+                label.innerHTML = this.files[0].name;
+
+            }
+
+        });
+
+    });
+
+    /*====================================================
+        VERIFY BUTTON LOADING
+    ====================================================*/
+
+    if (verifyBtn) {
+
+        verifyBtn.addEventListener("click", function () {
+
+            if (this.classList.contains("loading")) return;
+
+            this.classList.add("loading");
+
+            const originalText = this.innerHTML;
+
+            this.disabled = true;
+
+            this.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Verifying Document...
+            `;
+
+            setTimeout(() => {
+
+                this.disabled = false;
+
+                this.classList.remove("loading");
+
+                this.innerHTML = originalText;
+
+            },3000);
+
+        });
+
+    }
+
+    /*====================================================
+        HERO TYPING EFFECT
+    ====================================================*/
+
+    const typingTitle = document.getElementById("typing-title");
+
+    if (typingTitle) {
+
+        const text =
+        "AI Powered Government Citizen Service Portal";
+
+        let index = 0;
+
+        function typingEffect() {
+
+            if(index < text.length){
+
+                typingTitle.innerHTML += text.charAt(index);
+
+                index++;
+
+                setTimeout(typingEffect,40);
+
+            }
+
+        }
+
+        typingEffect();
+
+    }
+
+    /*====================================================
+        LIVE CLOCK
+    ====================================================*/
+
+    const clock = document.getElementById("clock");
+
+    if(clock){
+
+        function updateClock(){
+
+            const date = new Date();
+
+            clock.innerHTML =
+
+            date.toLocaleDateString("en-IN") +
+
+            " | " +
+
+            date.toLocaleTimeString("en-IN");
+
+        }
+
+        updateClock();
+
+        setInterval(updateClock,1000);
+
+    }
+
+    /*====================================================
+        TRUST SCORE
+    ====================================================*/
+
+    const trustScore = document.getElementById("trustScore");
+
+    if(trustScore){
+
+        let value = 0;
+
+        const trustInterval = setInterval(()=>{
+
+            value++;
+
+            trustScore.innerHTML = value + "%";
+
+            if(value>=99){
+
+                clearInterval(trustInterval);
+
+            }
+
+        },25);
+
+    }
+
+    /*====================================================
+        PAGE LOADER
+    ====================================================*/
+
+    const loader = document.getElementById("loader");
+
+    if(loader){
+
+        window.addEventListener("load",()=>{
+
+            setTimeout(()=>{
+
+                loader.classList.add("loader-hide");
+
+            },800);
+
+        });
+
+    }
+
+    /*====================================================
+        WELCOME POPUP
+    ====================================================*/
+
+    const popup = document.getElementById("welcomePopup");
+
+    window.closePopup = function(){
+
+        if(popup){
+
+            popup.classList.add("hidePopup");
+
+        }
+
+    }
+
+    /*====================================================
+        TOAST MESSAGE
+    ====================================================*/
+
+    const toast = document.getElementById("toast");
+
+    if(toast){
+
+        setTimeout(()=>{
+
+            toast.style.display="block";
+
+            toast.style.opacity="1";
+
+        },2500);
+
+        setTimeout(()=>{
+
+            toast.style.opacity="0";
+
+            setTimeout(()=>{
+
+                toast.style.display="none";
+
+            },400);
+
+        },6500);
+
+    }
+
+    /*====================================================
+        PARTICLE BACKGROUND
+    ====================================================*/
+
+    const particleContainer = document.getElementById("particles");
+
+    if(particleContainer){
+
+        for(let i=0;i<40;i++){
+
+            const particle = document.createElement("span");
+
+            particle.className="particle";
+
+            particle.style.left=Math.random()*100+"%";
+
+            particle.style.animationDuration=
+
+            (5+Math.random()*8)+"s";
+
+            particle.style.animationDelay=
+
+            Math.random()*5+"s";
+
+            particleContainer.appendChild(particle);
+
+        }
+
+    }
+
+    /*====================================================
+        INITIALIZE
+    ====================================================*/
+
+    console.log(
+
+        "%c SmartGov AI Loaded Successfully",
+
+        "color:#0B5ED7;font-size:14px;font-weight:bold;"
+
+    );
+
+});
