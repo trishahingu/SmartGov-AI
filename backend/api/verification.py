@@ -3,11 +3,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from services.database_service import save_verification
 from services.trust_service import calculate_trust_score
-from services.face_service import detect_face
-from services.ocr_service import extract_text
-from services.liveness_service import check_liveness
 from services.report_service import generate_report
-from services.forgery_service import check_forgery
 from services.document_parser import parse_document
 
 router = APIRouter(
@@ -26,7 +22,11 @@ async def verify_document(
 ):
     try:
 
-        # ---------------- Save Uploaded Files ----------------
+        # Lazy imports (loaded only when API is called)
+        from services.ocr_service import extract_text
+        from services.face_service import detect_face
+        from services.liveness_service import check_liveness
+        from services.forgery_service import check_forgery
 
         document_path = os.path.join(
             UPLOAD_FOLDER,
@@ -44,28 +44,22 @@ async def verify_document(
         with open(selfie_path, "wb") as f:
             f.write(await selfie.read())
 
-        # ---------------- OCR ----------------
-
+        # OCR
         ocr_text = extract_text(document_path)
 
-        # ---------------- Parse Document ----------------
-
+        # Parse document
         document_data = parse_document(ocr_text)
 
-        # ---------------- Face Detection ----------------
-
+        # Face Detection
         face_result = detect_face(selfie_path)
 
-        # ---------------- Liveness ----------------
-
+        # Liveness
         liveness = check_liveness(selfie_path)
 
-        # ---------------- Forgery ----------------
-
+        # Forgery
         forgery = check_forgery(document_path)
 
-        # ---------------- Trust Score ----------------
-
+        # Trust Score
         trust = calculate_trust_score(
             face_result,
             ocr_text,
@@ -74,59 +68,34 @@ async def verify_document(
             document_data
         )
 
-        # ---------------- Final Data ----------------
-
         verification_data = {
-
             "document": document_data,
-
             "ocr": {
                 "text": ocr_text
             },
-
             "face": face_result,
-
             "liveness": liveness,
-
             "forgery": forgery,
-
             "trust": trust
         }
 
-        # ---------------- Save Database ----------------
-
         save_verification(verification_data)
-
-        # ---------------- Generate PDF ----------------
 
         report = generate_report(verification_data)
 
-        # ---------------- API Response ----------------
-
         return {
-
             "success": True,
-
             "message": "Verification completed successfully.",
-
             "document": document_data,
-
             "ocr": verification_data["ocr"],
-
             "face": face_result,
-
             "liveness": liveness,
-
             "forgery": forgery,
-
             "trust": trust,
-
             "report": report
-
         }
 
     except Exception as e:
-
         raise HTTPException(
             status_code=500,
             detail=str(e)
