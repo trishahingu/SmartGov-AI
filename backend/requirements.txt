@@ -8,3 +8,5 @@ Pillow
 jinja2
 aiofiles
 requests
+pymongo
+dnspython
